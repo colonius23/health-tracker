@@ -1,4 +1,5 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import BloodTests from './pages/BloodTests'
@@ -23,6 +24,7 @@ export default function App() {
           </Routes>
         </main>
       </div>
+      <Analytics />
     </HashRouter>
   )
 }
