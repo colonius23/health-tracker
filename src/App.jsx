@@ -1,10 +1,10 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
-import { Analytics } from '@vercel/analytics/react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import BloodTests from './pages/BloodTests'
 import Activities from './pages/Activities'
 import Sleep from './pages/Sleep'
+import Vitals from './pages/Vitals'
 import Upload from './pages/Upload'
 import Settings from './pages/Settings'
 
@@ -19,12 +19,12 @@ export default function App() {
             <Route path="/blood" element={<BloodTests />} />
             <Route path="/activities" element={<Activities />} />
             <Route path="/sleep" element={<Sleep />} />
+            <Route path="/vitals" element={<Vitals />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>
-      <Analytics />
     </HashRouter>
   )
 }
