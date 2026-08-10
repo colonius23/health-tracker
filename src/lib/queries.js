@@ -24,6 +24,12 @@ export async function fetchBodyMetrics(limit = 400) {
   return data
 }
 
+export async function fetchVitals(limit = 3000) {
+  const { data, error } = await supabase.from('vitals').select('*').order('recorded_date', { ascending: true }).limit(limit)
+  if (error) throw error
+  return data
+}
+
 export async function insertRows(table, rows) {
   const { data, error } = await supabase.from(table).insert(rows).select()
   if (error) throw error
