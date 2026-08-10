@@ -28,6 +28,12 @@ const TEMPLATES = {
     example: '2026-06-01,97.0,,Manual',
     numeric: ['weight_kg', 'body_fat_pct'],
   },
+  vitals: {
+    label: 'Vitals (heart rate)',
+    columns: ['recorded_date', 'avg_hr', 'min_hr', 'max_hr', 'resting_hr', 'source'],
+    example: '2026-06-01,68.5,44,142,58,Apple Health',
+    numeric: ['avg_hr', 'min_hr', 'max_hr', 'resting_hr'],
+  },
 }
 
 export default function Upload() {
