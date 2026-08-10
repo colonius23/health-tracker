@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabaseConfigured } from '../lib/supabaseClient'
-import { fetchBloodTests, fetchBodyMetrics, fetchSleep, fetchActivities } from '../lib/queries'
+import { fetchBloodTests, fetchBodyMetrics, fetchSleep, fetchActivities, fetchVitals } from '../lib/queries'
 import MultiTrendChart from '../components/MultiTrendChart'
 import TrendChart from '../components/TrendChart'
 import { Link } from 'react-router-dom'
@@ -17,13 +17,14 @@ export default function Dashboard() {
   const [weight, setWeight] = useState([])
   const [sleep, setSleep] = useState([])
   const [activities, setActivities] = useState([])
+  const [vitals, setVitals] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
 
   useEffect(() => {
     if (!supabaseConfigured) { setLoading(false); return }
-    Promise.all([fetchBloodTests(), fetchBodyMetrics(), fetchSleep(180), fetchActivities(400)])
-      .then(([b, w, s, a]) => { setBlood(b); setWeight(w); setSleep(s); setActivities(a) })
+    Promise.all([fetchBloodTests(), fetchBodyMetrics(), fetchSleep(3000), fetchActivities(3000), fetchVitals()])
+      .then(([b, w, s, a, v]) => { setBlood(b); setWeight(w); setSleep(s); setActivities(a); setVitals(v) })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false))
   }, [])
@@ -60,26 +61,41 @@ export default function Dashboard() {
   const latestWeight = weightData[weightData.length - 1]
   const firstWeight = weightData[0]
 
-  // --- Activity trend: weekly training minutes ---
-  const byWeek = {}
+  // --- Activity trend: total minutes per month ---
+  const activityByMonth = {}
   for (const a of activities) {
-    const d = new Date(a.activity_date)
-    const weekStart = new Date(d)
-    weekStart.setDate(d.getDate() - d.getDay())
-    const label = weekStart.toISOString().slice(0, 10)
-    byWeek[label] = (byWeek[label] || 0) + (a.duration_min || 0)
+    const month = a.activity_date.slice(0, 7)
+    activityByMonth[month] = (activityByMonth[month] || 0) + (a.duration_min || 0)
   }
-  const activityData = Object.entries(byWeek)
-    .map(([date, value]) => ({ date: date.slice(5), value: Math.round(value) }))
+  const activityData = Object.entries(activityByMonth)
+    .map(([date, value]) => ({ date, value: Math.round(value) }))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-26)
 
-  // --- Sleep trend: nightly duration (hrs) ---
-  const sleepData = [...sleep]
-    .filter((s) => s.duration_min != null)
-    .sort((a, b) => a.sleep_date.localeCompare(b.sleep_date))
-    .slice(-60)
-    .map((s) => ({ date: s.sleep_date.slice(5), value: +(s.duration_min / 60).toFixed(1) }))
+  // --- Sleep trend: average nightly duration (hrs) per month ---
+  const sleepByMonth = {}
+  for (const s of sleep) {
+    if (s.duration_min == null) continue
+    const month = s.sleep_date.slice(0, 7)
+    if (!sleepByMonth[month]) sleepByMonth[month] = { sum: 0, n: 0 }
+    sleepByMonth[month].sum += s.duration_min
+    sleepByMonth[month].n += 1
+  }
+  const sleepData = Object.entries(sleepByMonth)
+    .map(([date, { sum, n }]) => ({ date, value: +((sum / n) / 60).toFixed(1) }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  // --- Vitals trend: average heart rate per month ---
+  const vitalsByMonth = {}
+  for (const v of vitals) {
+    if (v.avg_hr == null) continue
+    const month = v.recorded_date.slice(0, 7)
+    if (!vitalsByMonth[month]) vitalsByMonth[month] = { sum: 0, n: 0 }
+    vitalsByMonth[month].sum += v.avg_hr
+    vitalsByMonth[month].n += 1
+  }
+  const vitalsData = Object.entries(vitalsByMonth)
+    .map(([date, { sum, n }]) => ({ date, value: Math.round((sum / n) * 10) / 10 }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   return (
     <div className="space-y-10">
@@ -124,7 +140,7 @@ export default function Dashboard() {
       {/* 3. Activity trend */}
       <Section
         title="Activity"
-        sub="Weekly training minutes"
+        sub="Total training minutes per month"
         emptyLink={activityData.length === 0 && <Link to="/upload" className="text-mint text-sm underline">Upload activities</Link>}
       >
         <TrendChart data={activityData} unit="min" color="#F2A93B" />
@@ -133,10 +149,19 @@ export default function Dashboard() {
       {/* 4. Sleep trend */}
       <Section
         title="Sleep"
-        sub="Nightly duration (hrs)"
+        sub="Average nightly duration per month (hrs)"
         emptyLink={sleepData.length === 0 && <Link to="/upload" className="text-mint text-sm underline">Upload sleep data</Link>}
       >
         <TrendChart data={sleepData} unit="hrs" color="#5B9BD9" />
+      </Section>
+
+      {/* 5. Vitals trend */}
+      <Section
+        title="Vitals"
+        sub="Average heart rate per month (bpm)"
+        emptyLink={vitalsData.length === 0 && <Link to="/upload" className="text-mint text-sm underline">Upload vitals data</Link>}
+      >
+        <TrendChart data={vitalsData} unit="bpm" color="#EF5B5B" />
       </Section>
     </div>
   )
