@@ -1,7 +1,7 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 
 // Multiple series on one chart, e.g. TC / HDL / LDL / TG over time, all in mmol/L.
-export default function MultiTrendChart({ data, series, height = 260 }) {
+export default function MultiTrendChart({ data, series, height = 260, referenceDate, referenceLabel }) {
   if (!data || data.length === 0) {
     return <div className="h-full flex items-center justify-center text-muted text-sm">No data yet</div>
   }
@@ -16,6 +16,10 @@ export default function MultiTrendChart({ data, series, height = 260 }) {
           labelStyle={{ color: '#8A97AC' }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: '#8A97AC' }} />
+        {referenceDate && (
+          <ReferenceLine x={referenceDate} stroke="#F2A93B" strokeDasharray="4 4" strokeWidth={1.5}
+            label={{ value: referenceLabel || 'Start', position: 'insideTopRight', fill: '#F2A93B', fontSize: 10 }} />
+        )}
         {series.map((s) => (
           <Line
             key={s.key}
