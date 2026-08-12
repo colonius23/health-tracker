@@ -30,6 +30,20 @@ export async function fetchVitals(limit = 3000) {
   return data
 }
 
+export async function fetchSettings() {
+  const { data, error } = await supabase.from('app_settings').select('*')
+  if (error) throw error
+  const map = {}
+  for (const row of data) map[row.key] = row.value
+  return map
+}
+
+export async function upsertSetting(key, value) {
+  const { data, error } = await supabase.from('app_settings').upsert({ key, value }, { onConflict: 'key' }).select()
+  if (error) throw error
+  return data
+}
+
 export async function insertRows(table, rows) {
   const { data, error } = await supabase.from(table).insert(rows).select()
   if (error) throw error
