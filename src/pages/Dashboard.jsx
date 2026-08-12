@@ -282,8 +282,7 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-        {/* <MultiTrendChart data={lipidData} series={LIPID_SERIES} referenceDate={dietStart} referenceLabel="Diet start" /> */}
-        <div>MultiTrendChart disabled</div>
+        <MultiTrendChart data={lipidData} series={LIPID_SERIES} referenceDate={dietStart} referenceLabel="Diet start" />
       
       </Section>
 
@@ -316,8 +315,7 @@ export default function Dashboard() {
         sub={latestWeight ? `${latestWeight.value} kg${goalWeight ? ` — goal ${goalWeight} kg` : ''} — dashed line is a 60-day projection from the last 30 days' rate` : 'kg over time'}
         emptyLink={weightData.length === 0 && <Link to="/upload" className="text-mint text-sm underline">Upload body metrics</Link>}
       >
-        {/*<TrendChart data={weightWithProjection} unit="kg" color="#35D0A0" projectionKey="projected" referenceDate={dietStart} referenceLabel="Diet start" />*/}
-        <div>Weight chart disabled</div>
+        <TrendChart data={weightWithProjection} unit="kg" color="#35D0A0" projectionKey="projected" referenceDate={dietStart} referenceLabel="Diet start" />
       </Section>
 
       {/* 3. Activity trend */}
