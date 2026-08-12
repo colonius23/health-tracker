@@ -18,7 +18,7 @@ export default function App() {
         </div>
         <main className="flex-1 p-6 md:p-8 max-w-6xl">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<div>Hello</div>} />
             <Route path="/blood" element={<BloodTests />} />
             <Route path="/activities" element={<Activities />} />
             <Route path="/sleep" element={<Sleep />} />
