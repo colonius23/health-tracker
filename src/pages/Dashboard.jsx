@@ -43,6 +43,70 @@ export default function Dashboard() {
   const chartCutoff = cutoffDate(range)
   const inRange = (d) => !chartCutoff || d >= chartCutoff
 
+  // Insights must be computed unconditionally (before any early return) so hook
+  // order stays consistent between the loading and loaded renders.
+  const insights = useMemo(() => {
+    if (!dietStart) return null
+    const preStart = new Date(dietStart); preStart.setDate(preStart.getDate() - 60)
+    const preStartStr = preStart.toISOString().slice(0, 10)
+
+    const out = {}
+
+    const allWeightData = weight
+      .filter((w) => w.weight_kg != null)
+      .map((w) => ({ date: w.metric_date, value: w.weight_kg }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+    const preW = allWeightData.filter((d) => d.date < dietStart)
+    const postW = allWeightData.filter((d) => d.date >= dietStart)
+    if (preW.length && postW.length) {
+      const base = preW[preW.length - 1]
+      const latest = postW[postW.length - 1]
+      const days = Math.max(daysBetween(base.date, latest.date), 1)
+      out.weight = {
+        baseline: base.value, latest: latest.value, days,
+        totalChange: +(base.value - latest.value).toFixed(1),
+        weeklyRate: +((base.value - latest.value) / days * 7).toFixed(2),
+      }
+    }
+
+    const preS = sleep.filter((s) => s.duration_min != null && s.sleep_date >= preStartStr && s.sleep_date < dietStart)
+    const postS = sleep.filter((s) => s.duration_min != null && s.sleep_date >= dietStart)
+    if (preS.length && postS.length) {
+      const avg = (arr) => arr.reduce((s, r) => s + r.duration_min, 0) / arr.length / 60
+      out.sleep = { preAvg: +avg(preS).toFixed(2), postAvg: +avg(postS).toFixed(2), preN: preS.length, postN: postS.length }
+    }
+
+    const preHr = vitals.filter((v) => v.resting_hr != null && v.recorded_date >= preStartStr && v.recorded_date < dietStart)
+    const postHr = vitals.filter((v) => v.resting_hr != null && v.recorded_date >= dietStart)
+    if (preHr.length && postHr.length) {
+      const avg = (arr) => arr.reduce((s, r) => s + Number(r.resting_hr), 0) / arr.length
+      out.restingHr = { preAvg: +avg(preHr).toFixed(1), postAvg: +avg(postHr).toFixed(1), preN: preHr.length, postN: postHr.length }
+    }
+
+    const preA = activities.filter((a) => a.activity_date >= preStartStr && a.activity_date < dietStart)
+    const postA = activities.filter((a) => a.activity_date >= dietStart)
+    const preWeeks = 60 / 7
+    const postWeeks = Math.max(daysBetween(dietStart, new Date().toISOString().slice(0, 10)) / 7, 1)
+    out.activity = {
+      preSessions: preA.length, postSessions: postA.length,
+      preMinPerWeek: Math.round(preA.reduce((s, a) => s + (parseFloat(a.duration_min) || 0), 0) / preWeeks),
+      postMinPerWeek: Math.round(postA.reduce((s, a) => s + (parseFloat(a.duration_min) || 0), 0) / postWeeks),
+    }
+
+    out.lipids = {}
+    for (const marker of ['Total Cholesterol', 'LDL', 'HDL', 'Triglycerides']) {
+      const rows = blood.filter((b) => b.marker === marker).sort((a, b) => a.test_date.localeCompare(b.test_date))
+      const pre = rows.filter((r) => r.test_date < dietStart)
+      const post = rows.filter((r) => r.test_date >= dietStart)
+      if (pre.length) {
+        out.lipids[marker] = { pre: pre[pre.length - 1].value, preDate: pre[pre.length - 1].test_date,
+          post: post.length ? post[post.length - 1].value : null, postDate: post.length ? post[post.length - 1].test_date : null }
+      }
+    }
+
+    return out
+  }, [dietStart, weight, sleep, vitals, activities, blood])
+
   if (!supabaseConfigured) {
     return (
       <EmptyState
@@ -139,70 +203,6 @@ export default function Dashboard() {
     .map(([date, { sum, n }]) => ({ date, value: Math.round((sum / n) * 10) / 10 }))
     .sort((a, b) => a.date.localeCompare(b.date))
 
-  // --- Insights: auto pre/post comparison around dietStart ---
-  const insights = useMemo(() => {
-    if (!dietStart) return null
-    const preStart = new Date(dietStart); preStart.setDate(preStart.getDate() - 60)
-    const preStartStr = preStart.toISOString().slice(0, 10)
-
-    const out = {}
-
-    // weight
-    const preW = allWeightData.filter((d) => d.date < dietStart)
-    const postW = allWeightData.filter((d) => d.date >= dietStart)
-    if (preW.length && postW.length) {
-      const base = preW[preW.length - 1]
-      const latest = postW[postW.length - 1]
-      const days = Math.max(daysBetween(base.date, latest.date), 1)
-      out.weight = {
-        baseline: base.value, latest: latest.value, days,
-        totalChange: +(base.value - latest.value).toFixed(1),
-        weeklyRate: +((base.value - latest.value) / days * 7).toFixed(2),
-      }
-    }
-
-    // sleep
-    const preS = sleep.filter((s) => s.duration_min != null && s.sleep_date >= preStartStr && s.sleep_date < dietStart)
-    const postS = sleep.filter((s) => s.duration_min != null && s.sleep_date >= dietStart)
-    if (preS.length && postS.length) {
-      const avg = (arr) => arr.reduce((s, r) => s + r.duration_min, 0) / arr.length / 60
-      out.sleep = { preAvg: +avg(preS).toFixed(2), postAvg: +avg(postS).toFixed(2), preN: preS.length, postN: postS.length }
-    }
-
-    // resting HR
-    const preHr = vitals.filter((v) => v.resting_hr != null && v.recorded_date >= preStartStr && v.recorded_date < dietStart)
-    const postHr = vitals.filter((v) => v.resting_hr != null && v.recorded_date >= dietStart)
-    if (preHr.length && postHr.length) {
-      const avg = (arr) => arr.reduce((s, r) => s + Number(r.resting_hr), 0) / arr.length
-      out.restingHr = { preAvg: +avg(preHr).toFixed(1), postAvg: +avg(postHr).toFixed(1), preN: preHr.length, postN: postHr.length }
-    }
-
-    // activity
-    const preA = activities.filter((a) => a.activity_date >= preStartStr && a.activity_date < dietStart)
-    const postA = activities.filter((a) => a.activity_date >= dietStart)
-    const preWeeks = 60 / 7
-    const postWeeks = Math.max(daysBetween(dietStart, new Date().toISOString().slice(0, 10)) / 7, 1)
-    out.activity = {
-      preSessions: preA.length, postSessions: postA.length,
-      preMinPerWeek: Math.round(preA.reduce((s, a) => s + (parseFloat(a.duration_min) || 0), 0) / preWeeks),
-      postMinPerWeek: Math.round(postA.reduce((s, a) => s + (parseFloat(a.duration_min) || 0), 0) / postWeeks),
-    }
-
-    // lipids
-    out.lipids = {}
-    for (const marker of ['Total Cholesterol', 'LDL', 'HDL', 'Triglycerides']) {
-      const rows = blood.filter((b) => b.marker === marker).sort((a, b) => a.test_date.localeCompare(b.test_date))
-      const pre = rows.filter((r) => r.test_date < dietStart)
-      const post = rows.filter((r) => r.test_date >= dietStart)
-      if (pre.length) {
-        out.lipids[marker] = { pre: pre[pre.length - 1].value, preDate: pre[pre.length - 1].test_date,
-          post: post.length ? post[post.length - 1].value : null, postDate: post.length ? post[post.length - 1].test_date : null }
-      }
-    }
-
-    return out
-  }, [dietStart, allWeightData, sleep, vitals, activities, blood])
-
   return (
     <div className="space-y-10">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -283,7 +283,6 @@ export default function Dashboard() {
           </div>
         )}
         <MultiTrendChart data={lipidData} series={LIPID_SERIES} referenceDate={dietStart} referenceLabel="Diet start" />
-      
       </Section>
 
       {/* 1b. Risk ratios */}
