@@ -5,6 +5,7 @@ const links = [
   { to: '/blood', label: 'Blood Tests', icon: '●' },
   { to: '/activities', label: 'Activities', icon: '▲' },
   { to: '/sleep', label: 'Sleep', icon: '☾' },
+  { to: '/vitals', label: 'Vitals', icon: '♥' },
   { to: '/upload', label: 'Upload Data', icon: '↑' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
